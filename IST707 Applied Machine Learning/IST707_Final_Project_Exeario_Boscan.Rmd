@@ -1,0 +1,471 @@
+---
+title: "IST707_FinalProject_ExearioBoscan"
+author: "Exeario Boscan"
+date: "3/9/2022"
+output: pdf_document
+---
+```{r}
+library(tidyverse)
+library(knitr)
+library(plyr)
+library(dplyr)
+library(arules)
+library(cluster)
+library(factoextra)
+library(ClusterR)
+library(colorspace)
+library(tm)
+library(DAAG)
+library(party)
+library(rpart)
+library(rpart.plot)
+library(mlbench)
+library(caret)
+library(pROC)
+library(tree)
+library(readr)
+library(ggplot2)
+```
+
+```{r}
+Covid19Africa <- read.csv("covid_africa_weekly_trend.csv")
+```
+
+```{r}
+str(Covid19Africa)
+```
+
+```{r}
+data.frame(Covid19Africa)
+```
+```{r}
+summary(Covid19Africa)
+```
+
+
+## Classification 
+```{r}
+rules <- apriori(Covid19Africa,parameter=list(support=0.005, confidence=0.5))
+```
+```{r}
+library(arulesViz)
+```
+
+
+
+
+
+```{r}
+rules1 <- apriori(Covid19Africa, parameter = list(supp = 0.001, conf = 0.9, 
+                                                 maxlen = 10))
+```
+```{r}
+head(rules1(rules))
+``` 
+  
+  
+  
+```{r}
+library(arulesViz)
+```
+
+
+```{r}
+rules2 <- apriori(Covid19Africa,parameter=list(support=0.005, confidence=0.35))
+```
+
+```{r}
+rules
+```
+```{r}
+inspect(head(rules, n = 3, by = "lift"))
+```
+
+```{r}
+plot(rules)
+```
+```{r}
+plot(rules1)
+```
+```{r}
+plot(rules2)
+```
+
+```{r}
+rules3 <- apriori(Covid19Africa, parameter = list(supp = 0.001, conf = 0.9, 
+                                                 maxlen = 4))
+```
+```{r}
+plot(rules3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# VARIABLES VISUALIZATION
+```{r}
+plot(Covid19Africa$Cases.in.the.last.7.days, Covid19Africa$Cases.in.the.preceding.7.days)
+```
+
+
+```{r}
+library(purrr)
+library(tidyr)
+library(ggplot2)
+
+hist(Covid19Africa$Cases.in.the.last.7.days)
+hist(Covid19Africa$Cases.in.the.preceding.7.days)
+hist(Covid19Africa$Weekly.Case...Change)
+hist(Covid19Africa$Cases.in.the.last.7.days.1M.pop)
+hist(Covid19Africa$Deaths.in.the.last.7.days)
+hist(Covid19Africa$Deaths.in.the.preceding.7.days)
+hist(Covid19Africa$Weekly.Death...Change)
+hist(Covid19Africa$Deaths.in.the.last.7.days.1M.pop)
+hist(Covid19Africa$Population)
+```
+
+
+## NAIVE BAYES
+```{r}
+library(dplyr)    
+library(ggplot2) 
+library(caret)    
+```
+
+```{r}
+features <- setdiff(names(train), "Covid19Africa")
+x <- train[, features]
+y <- train$Covid19Africa
+```
+
+
+
+```{r}
+trainset <- read.csv("covid_africa_weekly_trend.csv")
+trainset$Survived=factor(trainset$Cases.in.the.last.7.days)
+trainset$Pclass=ordered(trainset$Cases.in.the.preceding.7.days)
+```
+
+
+```{r}
+testset <- read.csv("covid_africa_weekly_trend.csv")
+testset$Cases.in.the.last.7.days=factor(testset$Cases.in.the.last.7.days)
+testset$Cases.in.the.preceding.7.days=ordered(testset$Cases.in.the.preceding.7.days)
+```
+
+```{r}
+trainset <- read.csv("covid_africa_weekly_trend.csv")
+trainset$Cases.in.the.last.7.days=factor(trainset$Cases.in.the.last.7.days)
+trainset$Cases.in.the.preceding.7.days=ordered(trainset$Cases.in.the.preceding.7.days)
+```
+
+
+```{r}
+library(e1071)
+```
+
+```{r}
+nb=naiveBayes(Cases.in.the.last.7.days~., 
+              data = trainset, laplace = 1, na.action = na.pass)
+```
+
+
+
+
+
+
+##Break
+
+```{r}
+library(cluster)
+library(factoextra)
+library(ClusterR)
+library(colorspace)
+library(tm)
+library(tidyverse)
+```
+
+#Decision Tree
+```{r}
+library(tree)
+```
+
+```{r}
+mydata <- Covid19Africa
+```
+
+
+```{r}
+set.seed(1234)
+ind <- sample(2, nrow(mydata), replace = T, prob = c(0.5, 0.5))
+train <- mydata[ind == 1,]
+test <- mydata[ind == 2,]
+```
+
+# SECTION 2: Build and Tune Decision Tree Models
+
+## 1. TREE CLASSIFICATION
+```{r}
+tree <- rpart(no ~., data = train)
+rpart.plot(tree)
+printcp(tree)
+```
+
+## HAC Clustering ##
+```{r}
+Covid19Africa <- Covid19Africa
+Covid19Africa2 <- Covid19Africa[,-5]
+species_labels <- Covid19Africa[,5]
+library(colorspace) 
+species_col <- rev(rainbow_hcl(3))[as.numeric(species_labels)]
+
+d_Covid19Africa <- dist(Covid19Africa2) 
+hc_Covid19Africa <- hclust(d_Covid19Africa, method = "complete")
+Covid19Africa_Cases.in.the.last.7.days <- rev(levels(Covid19Africa[,5]))
+
+library(dendextend)
+dend <- as.dendrogram(hc_Covid19Africa)
+
+
+
+dend <- color_branches(dend, k=3) #, groupLabels=iris_species)
+
+
+labels_colors(dend) <-
+  rainbow_hcl(3)[sort_levels_values(
+    as.numeric(Covid19Africa[,5])[order.dendrogram(dend)]
+  )]
+
+
+labels(dend) <- paste(as.character(Covid19Africa[,5])[order.dendrogram(dend)],
+                      "(",labels(dend),")", 
+                      sep = "")
+
+dend <- hang.dendrogram(dend,hang_height=0.1)
+
+dend <- set(dend, "labels_cex", 0.5)
+par(mar = c(3,3,3,7))
+plot(dend, 
+     main = "Clustered Covid19Africa data set
+     (10 Variables)", 
+     horiz =  TRUE,  nodePar = list(cex = .007))
+legend("topleft", legend = Covid19Africa_Cases.in.the.last.7.days, fill = 
+         rainbow_hcl(3))
+```
+
+## MULTIMODEL
+
+```{r}
+trainset <- read.csv("covid_africa_weekly_trend_test.csv")
+testset <- read.csv("covid_africa_weekly_trend.train.csv")
+```
+
+```{r}
+trainset$Cases.in.the.last.7.days=factor(trainset$Cases.in.the.last.7.days)
+trainset$Cases.in.the.preceding.7.days=ordered(trainset$Cases.in.the.preceding.7.days)
+testset$Cases.in.the.last.7.days=factor(testset$Cases.in.the.last.7.days)
+testset$Cases.in.the.preceding.7.days=ordered(testset$Cases.in.the.preceding.7.days)
+```
+
+
+
+
+##SVM 
+
+```{r}
+install.packages("kernlab")
+library(kernlab)
+```
+
+```{r}
+str(Covid19Africa)
+```
+
+
+
+```{r}
+dim(Covid19Africa)
+```
+
+```{r}
+table(Covid19Africa$Country.Other)
+```
+
+
+```{r}
+randIndex <- sample(1:dim(Covid19Africa)[1])
+summary(randIndex)
+```
+
+```{r}
+length(randIndex)
+```
+
+```{r}
+head(randIndex)
+```
+
+```{r}
+cutPoint2_3 <- floor(2 * dim(Covid19Africa)[1]/3)
+cutPoint2_3
+```
+
+```{r}
+trainData <- Covid19Africa[randIndex[1:cutPoint2_3],]
+```
+
+```{r}
+testData <- Covid19Africa[randIndex[(cutPoint2_3+1):dim(Covid19Africa)[1]],]
+```
+
+```{r}
+svmOutput <- ksvm(type ~., data=trainData, kernel = 
+                    "rbfdot",kpar="automatic",C=5,cross=3, prob.model=TRUE)
+svmOutput
+```
+
+
+##Random Forest##
+```{r}
+library(randomForest)
+set.seed(4543)
+Covid19Africa.rf <- randomForest(Cases.in.the.last.7.days ~ ., data=Covid19Africa, ntree=100,
+keep.forest=FALSE, importance=TRUE)
+importance(Covid19Africa.rf)
+importance(Covid19Africa.rf, type=1)
+```
+
+```{r}
+plot(Covid19Africa.rf)
+```
+
+```{r}
+model<- ctree( ~ ., trainData)
+plot(model)
+```
+## 2 RAMDON FOREST
+```{r}
+library(rpart)
+library(readr)
+library(caTools)
+library(dplyr)
+library(party)
+library(partykit)
+library(rpart.plot)
+```
+
+```{r}
+set.seed(123)
+sample_data = sample.split(Covid19Africa, SplitRatio = 0.80)
+trainData <- subset(Covid19Africa, sample_data == TRUE)
+testData <- subset(Covid19Africa, sample_data == FALSE)
+```
+
+```{r}
+rtree <- rpart(Cases.in.the.preceding.7.days ~ ., trainData)
+rpart.plot(rtree)
+```
+
+
+## Multimodel e1071 ###
+
+```{r}
+trainset <- read.csv("covid_africa_weekly_trend.csv")
+trainset$Cases.in.the.last.7.days=factor(trainset$Cases.in.the.last.7.days)
+trainset$Cases.in.the.preceding.7.days=ordered(trainset$Cases.in.the.preceding.7.day)
+```
+
+```{r}
+testset <- read.csv("covid_africa_weekly_trend.csv")
+testset$Cases.in.the.last.7.days=factor(testset$Cases.in.the.last.7.days)
+testset$Cases.in.the.preceding.7.days=ordered(testset$Cases.in.the.preceding.7.day)
+```
+
+```{r}
+myVars=c("Cases.in.the.preceding.7.days","Weekly.Case...Change", 
+         "Weekly.Death...Change", "Cases.in.the.last.7.days")
+newtrain=trainset[myVars]
+newtest=testset[myVars]
+```
+
+```{r}
+library(e1071)
+```
+
+## NAIVE BAYES MODEL with e1071
+
+```{r}
+nb=naiveBayes(Cases.in.the.last.7.days~., data = newtrain, laplace = 1, na.action = na.pass)
+```
+
+```{r}
+pred=predict(nb, newdata=newtest, type=c("class"))
+```
+
+```{r}
+myids=c("Deaths.in.the.last.7.days")
+id_col=testset[myids]
+newpred=cbind(id_col, pred)
+```
+
+```{r}
+colnames(newpred)=c("Deaths.in.the.last.7.days", "Cases.in.the.last.7.days")
+```
+
+```{r}
+write.csv(newpred, file="covid_africa_weekly_trend-NB-pred.csv",
+row.names=FALSE)
+```
+
+### Naive Bayes
+```{r}
+library(caret)
+library(DescTools)
+library(e1071)
+```
+
+```{r}
+DM <- read.csv(file = "covid_africa_weekly_trend.csv",
+                   stringsAsFactors = FALSE)
+```
+
+```{r}
+Abstract(DM)
+```
+
+
+
+
+```{r}
+DM$Cases.in.the.preceding.7.days <- factor(x = DM$Cases.in.the.preceding.7.days,
+                    levels = c("Below_Avg", "Above_Avg"))
+```
+
+```{r}
+plot(x = DM$Cases.in.the.preceding.7.days, main = "Number of Cases")
+```
+
+# Preparing Predictor Variables
+```{r}
+noms <- c("Country.Other")
+DM[ ,noms] <- lapply(X = DM[ ,noms],
+                     FUN = factor)
+```
+
+```{r}
+set.seed(831) # initialize the random seed
+
+# Generate the list of observations for the
+# train dataframe
+sub <- createDataPartition(y = DM_bcs$, 
+                           p = 0.80, 
+                           list = FALSE)
